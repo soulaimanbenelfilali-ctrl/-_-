@@ -1,0 +1,1905 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>الهروب في الأنفاق - مطاردة السيارات والحافلات</title>
+    <!-- خط عربي عصري للألعاب -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;800;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            font-family: 'Cairo', sans-serif;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #0b0e14;
+            color: #ffffff;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: radial-gradient(circle at center, #1a2234 0%, #090c12 100%);
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+
+        /* واجهة المعلومات العلوية أثناء اللعب */
+        #hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .hud-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .hud-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .stat-badge {
+            background: rgba(15, 23, 42, 0.78);
+            backdrop-filter: blur(8px);
+            border: 2px solid rgba(255, 255, 255, 0.15);
+            border-radius: 16px;
+            padding: 8px 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: #94a3b8;
+            font-weight: 600;
+        }
+
+        .stat-value {
+            font-size: 1.4rem;
+            font-weight: 900;
+            color: #f8fafc;
+            letter-spacing: 0.5px;
+        }
+
+        .coin-value {
+            color: #fbbf24;
+            text-shadow: 0 2px 8px rgba(251, 191, 36, 0.4);
+        }
+
+        /* شريط المغناطيس */
+        #magnet-bar-wrap {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            background: rgba(15, 23, 42, 0.85);
+            border: 2px solid #ef4444;
+            border-radius: 14px;
+            padding: 6px 14px;
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.45);
+        }
+
+        #magnet-progress-bg {
+            width: 110px;
+            height: 10px;
+            background: #1e293b;
+            border-radius: 99px;
+            overflow: hidden;
+        }
+
+        #magnet-progress-fill {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #ef4444);
+            transition: width 0.1s linear;
+        }
+
+        /* أزرار التحكم السريعة (صوت / إيقاف) */
+        .icon-btn {
+            pointer-events: auto;
+            background: rgba(15, 23, 42, 0.82);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            font-size: 1.3rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.15s, background 0.2s;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.35);
+        }
+
+        .icon-btn:hover {
+            transform: scale(1.08);
+            background: rgba(30, 41, 59, 0.95);
+        }
+
+        .icon-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* شاشات البداية والنهاية والإيقاف */
+        .overlay-screen {
+            position: absolute;
+            inset: 0;
+            background: rgba(9, 13, 22, 0.78);
+            backdrop-filter: blur(7px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 24px;
+            z-index: 20;
+            transition: opacity 0.3s ease;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .game-title {
+            font-size: clamp(2.4rem, 6vw, 4.2rem);
+            font-weight: 900;
+            line-height: 1.1;
+            background: linear-gradient(180deg, #fde047 0%, #f97316 55%, #ea580c 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 5px 0 #1e3a8a) drop-shadow(0 10px 20px rgba(0, 0, 0, 0.6));
+            margin-bottom: 8px;
+        }
+
+        .game-subtitle {
+            font-size: clamp(1rem, 2.5vw, 1.35rem);
+            font-weight: 800;
+            color: #e2e8f0;
+            background: rgba(30, 58, 138, 0.75);
+            padding: 6px 20px;
+            border-radius: 99px;
+            border: 1px solid rgba(96, 165, 250, 0.4);
+            margin-bottom: 24px;
+        }
+
+        .card-panel {
+            background: linear-gradient(145deg, rgba(30, 41, 59, 0.92), rgba(15, 23, 42, 0.96));
+            border: 2px solid rgba(255, 255, 255, 0.14);
+            border-radius: 24px;
+            padding: 24px 32px;
+            max-width: 440px;
+            width: 100%;
+            box-shadow: 0 20px 45px rgba(0, 0, 0, 0.65);
+            margin-bottom: 24px;
+        }
+
+        .controls-hint {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-top: 14px;
+            text-align: right;
+        }
+
+        .hint-item {
+            background: rgba(15, 23, 42, 0.65);
+            padding: 10px 12px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            color: #cbd5e1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        .key-cap {
+            background: #334155;
+            color: #fbbf24;
+            font-weight: 800;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            border-bottom: 2px solid #0f172a;
+        }
+
+        .primary-btn {
+            background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
+            color: #ffffff;
+            font-size: 1.45rem;
+            font-weight: 900;
+            padding: 14px 44px;
+            border: none;
+            border-radius: 18px;
+            cursor: pointer;
+            box-shadow: 0 6px 0 #14532d, 0 14px 25px rgba(22, 163, 74, 0.45);
+            transition: transform 0.15s, filter 0.15s;
+        }
+
+        .primary-btn:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.08);
+        }
+
+        .primary-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #14532d, 0 6px 12px rgba(22, 163, 74, 0.4);
+        }
+
+        .score-summary {
+            display: flex;
+            justify-content: space-around;
+            margin: 16px 0;
+            gap: 12px;
+        }
+
+        .summary-box {
+            background: rgba(15, 23, 42, 0.8);
+            padding: 12px 18px;
+            border-radius: 16px;
+            flex: 1;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* أزرار تحكم لمسية للهواتف أسفل الشاشة */
+        #mobile-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            padding: 0 24px;
+            display: none;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
+            z-index: 15;
+        }
+
+        @media (max-width: 768px) {
+            #mobile-controls {
+                display: flex;
+            }
+            .stat-badge {
+                padding: 6px 12px;
+            }
+            .stat-value {
+                font-size: 1.15rem;
+            }
+        }
+
+        .touch-pad {
+            display: flex;
+            gap: 14px;
+            pointer-events: auto;
+        }
+
+        .touch-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: rgba(15, 23, 42, 0.65);
+            border: 2px solid rgba(255, 255, 255, 0.25);
+            color: #fff;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .touch-btn:active {
+            background: rgba(249, 115, 22, 0.75);
+            transform: scale(0.92);
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <!-- لوحة الرسم ثلاثية الأبعاد -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- شريط المعلومات العلوي -->
+    <div id="hud">
+        <div class="hud-group">
+            <div class="hud-row">
+                <div class="stat-badge">
+                    <div>
+                        <div class="stat-label">المسافة / النقاط</div>
+                        <div class="stat-value" id="score-display">0</div>
+                    </div>
+                </div>
+                <div class="stat-badge">
+                    <span style="font-size: 1.5rem;">🪙</span>
+                    <div>
+                        <div class="stat-label">العملات</div>
+                        <div class="stat-value coin-value" id="coins-display">0</div>
+                    </div>
+                </div>
+            </div>
+            <!-- مؤشر المغناطيس عند التقاطه -->
+            <div id="magnet-bar-wrap">
+                <span style="font-size: 1.3rem;">🧲</span>
+                <div id="magnet-progress-bg">
+                    <div id="magnet-progress-fill"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="hud-row">
+            <div class="stat-badge" style="padding: 8px 14px;">
+                <div>
+                    <div class="stat-label">أعلى نتيجة</div>
+                    <div class="stat-value" style="font-size: 1.1rem; color: #38bdf8;" id="highscore-display">0</div>
+                </div>
+            </div>
+            <button class="icon-btn" id="sound-btn" title="الصوت">🔊</button>
+            <button class="icon-btn" id="pause-btn" title="إيقاف مؤقت">⏸️</button>
+        </div>
+    </div>
+
+    <!-- أزرار التحكم للهاتف بالإضافة للسحب بالإصبع -->
+    <div id="mobile-controls">
+        <div class="touch-pad">
+            <button class="touch-btn" id="btn-right">➡️</button>
+            <button class="touch-btn" id="btn-left">⬅️</button>
+        </div>
+        <div class="touch-pad">
+            <button class="touch-btn" id="btn-up">⬆️</button>
+            <button class="touch-btn" id="btn-down">⬇️</button>
+        </div>
+    </div>
+
+    <!-- شاشة البداية -->
+    <div id="start-screen" class="overlay-screen">
+        <h1 class="game-title">الهروب في الأنفاق</h1>
+        <div class="game-subtitle">مطاردة السيارات داخل النفق</div>
+        
+        <div class="card-panel">
+            <p style="color: #e2e8f0; font-size: 1.05rem; line-height: 1.6;">
+                اهرب بلوح التزلج من الشرطي وكلبه وسط زحام السيارات والحواجز داخل النفق! اجمع العملات الذهبية والمغناطيس.
+            </p>
+            <div class="controls-hint">
+                <div class="hint-item"><span class="key-cap">◀ ▶</span> تغيير المسار</div>
+                <div class="hint-item"><span class="key-cap">▲ / مسافة</span> القفز</div>
+                <div class="hint-item"><span class="key-cap">▼</span> الانزلاق السريع</div>
+                <div class="hint-item"><span class="key-cap">📱 سحب</span> تحكم باللمس</div>
+            </div>
+        </div>
+
+        <button class="primary-btn" id="start-btn">ابدأ الهروب 🚀</button>
+    </div>
+
+    <!-- شاشة الإيقاف المؤقت -->
+    <div id="pause-screen" class="overlay-screen hidden">
+        <h2 class="game-title" style="font-size: 3rem;">اللعبة متوقفة</h2>
+        <p class="game-subtitle">الشرطي ينتظرك بالخلف!</p>
+        <button class="primary-btn" id="resume-btn">متابعة اللعب ▶️</button>
+    </div>
+
+    <!-- شاشة نهاية اللعبة (الخسارة) -->
+    <div id="gameover-screen" class="overlay-screen hidden">
+        <h2 class="game-title" style="font-size: 3rem;">أمسك بك الشرطي! 🚓</h2>
+        <div class="game-subtitle">لقد اصطدمت وسط زحام النفق</div>
+
+        <div class="card-panel">
+            <div class="score-summary">
+                <div class="summary-box">
+                    <div class="stat-label">النقاط المحققة</div>
+                    <div class="stat-value" id="final-score">0</div>
+                </div>
+                <div class="summary-box">
+                    <div class="stat-label">العملات الذهبية</div>
+                    <div class="stat-value coin-value" id="final-coins">0</div>
+                </div>
+            </div>
+            <div style="color: #38bdf8; font-weight: 800; font-size: 1.05rem;" id="new-record-msg" class="hidden">
+                🎉 رقم قياسي جديد! 🎉
+            </div>
+        </div>
+
+        <button class="primary-btn" id="restart-btn">العب مرة أخرى 🔄</button>
+    </div>
+</div>
+
+<script>
+/**
+ * محرك لعبة "الهروب في الأنفاق" (Tunnel Escape - 3D Perspective Canvas Engine)
+ * مصمم ليعمل بسلاسة 60 إطار في الثانية مع مؤثرات إضاءة واقعية داخل النفق.
+ */
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// عناصر الواجهة
+const scoreDisplay = document.getElementById('score-display');
+const coinsDisplay = document.getElementById('coins-display');
+const highScoreDisplay = document.getElementById('highscore-display');
+const magnetBarWrap = document.getElementById('magnet-bar-wrap');
+const magnetProgressFill = document.getElementById('magnet-progress-fill');
+
+const startScreen = document.getElementById('start-screen');
+const pauseScreen = document.getElementById('pause-screen');
+const gameoverScreen = document.getElementById('gameover-screen');
+const finalScoreEl = document.getElementById('final-score');
+const finalCoinsEl = document.getElementById('final-coins');
+const newRecordMsg = document.getElementById('new-record-msg');
+
+// نظام الصوت المدمج (Web Audio API) بدون ملفات خارجية
+class SoundFX {
+    constructor() {
+        this.ctx = null;
+        this.muted = false;
+    }
+
+    init() {
+        if (!this.ctx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) this.ctx = new AudioCtx();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume();
+        }
+    }
+
+    playTone(freq, endFreq, duration, type = 'sine', vol = 0.15) {
+        if (this.muted || !this.ctx) return;
+        try {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+            if (endFreq) {
+                osc.frequency.exponentialRampToValueAtTime(endFreq, this.ctx.currentTime + duration);
+            }
+            gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start();
+            osc.stop(this.ctx.currentTime + duration);
+        } catch (e) {}
+    }
+
+    coin() {
+        this.playTone(980, 1480, 0.12, 'sine', 0.14);
+    }
+
+    jump() {
+        this.playTone(220, 560, 0.18, 'triangle', 0.16);
+    }
+
+    dodge() {
+        this.playTone(300, 180, 0.1, 'sine', 0.12);
+    }
+
+    magnet() {
+        this.playTone(400, 900, 0.35, 'sawtooth', 0.12);
+    }
+
+    whistle() {
+        if (this.muted || !this.ctx) return;
+        this.playTone(2600, 2900, 0.15, 'sine', 0.12);
+        setTimeout(() => this.playTone(2800, 2400, 0.22, 'sine', 0.12), 160);
+    }
+
+    crash() {
+        this.playTone(140, 40, 0.4, 'sawtooth', 0.25);
+        setTimeout(() => this.whistle(), 200);
+    }
+}
+
+const sfx = new SoundFX();
+
+// إعدادات اللعبة والمتغيرات الأساسية
+let width = 0;
+let height = 0;
+
+function resizeCanvas() {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// حالة اللعبة
+const STATE = {
+    MENU: 0,
+    PLAYING: 1,
+    PAUSED: 2,
+    GAMEOVER: 3
+};
+
+let gameState = STATE.MENU;
+let score = 0;
+let coins = 0;
+let highScore = parseInt(localStorage.getItem('tunnel_escape_highscore') || '0', 10);
+highScoreDisplay.textContent = highScore;
+
+// إعدادات الفيزياء والمسارات
+const LANES = [-1, 0, 1]; // يسار، وسط، يمين
+const CAMERA_HEIGHT = 2.6;
+const CAMERA_DEPTH = 0.85; // مجال الرؤية (FOV)
+const MAX_Z = 140; // أقصى مدى رؤية داخل النفق
+const PLAYER_Z = 7.5; // موقع اللاعب على محور العمق Z
+
+let speed = 28; // سرعة الحركة الأساسية
+let distanceTraveled = 0;
+let chaseTimer = 4.5; // مدة ظهور الشرطي والكلب خلف اللاعب في البداية
+let magnetTimer = 0;
+const MAGNET_DURATION = 10.0;
+let screenShake = 0;
+
+// كائن اللاعب (البطل فوق لوح التزلج كما في الصورة)
+const player = {
+    lane: 0,
+    visualX: 0,
+    y: 0,
+    vy: 0,
+    isJumping: false,
+    isDucking: false,
+    duckTimer: 0,
+    tilt: 0,
+    animTime: 0
+};
+
+// كائنات العالم (سيارات، حافلات، عملات، مغناطيس، جزيئات)
+// كائنات العالم (سيارات، حواجز صغيرة، عملات، مغناطيس، جزيئات)
+let obstacles = [];
+let collectibles = [];
+let particles = [];
+let spawnTimer = 0;
+
+// أنواع المركبات الواقعية (سيارات فقط بدون حافلات + حواجز صغيرة قابلة للقفز)
+const VEHICLE_TYPES = [
+    { id: 'car_red', kind: 'car', color: '#ef4444', accent: '#b91c1c', height: 1.4, length: 4.3, jumpable: true },
+    { id: 'car_blue', kind: 'car', color: '#3b82f6', accent: '#1d4ed8', height: 1.4, length: 4.3, jumpable: true },
+    { id: 'car_orange', kind: 'car', color: '#d97706', accent: '#92400e', height: 1.4, length: 4.3, jumpable: true },
+    { id: 'car_yellow', kind: 'car', color: '#eab308', accent: '#a16207', height: 1.4, length: 4.3, jumpable: true },
+    { id: 'barrier_small', kind: 'barrier', color: '#dc2626', accent: '#ffffff', height: 0.68, length: 0.75, jumpable: true },
+    { id: 'cones_small', kind: 'cones', color: '#f97316', accent: '#ffffff', height: 0.62, length: 0.7, jumpable: true }
+];
+
+// دالة الإسقاط ثلاثي الأبعاد (3D to 2D Screen Projection)
+function project(x, y, z) {
+    const safeZ = Math.max(0.2, z);
+    const scale = CAMERA_DEPTH / safeZ;
+    const horizonY = height * 0.44;
+    const roadHalfWidth = Math.min(width * 0.44, height * 0.62);
+
+    const screenX = (width * 0.5) + (x * scale * roadHalfWidth);
+    const screenY = horizonY + ((CAMERA_HEIGHT - y) * scale * roadHalfWidth);
+    const screenScale = scale * roadHalfWidth;
+
+    return { x: screenX, y: screenY, scale: screenScale };
+}
+
+// إعادة ضبط اللعبة
+function resetGame() {
+    score = 0;
+    coins = 0;
+    speed = 29;
+    distanceTraveled = 0;
+    chaseTimer = 5.0; // الشرطي والكلب يطاردان اللاعب في البداية
+    magnetTimer = 0;
+    screenShake = 0;
+
+    player.lane = 0;
+    player.visualX = 0;
+    player.y = 0;
+    player.vy = 0;
+    player.isJumping = false;
+    player.isDucking = false;
+    player.duckTimer = 0;
+    player.tilt = 0;
+
+    obstacles = [];
+    collectibles = [];
+    particles = [];
+    spawnTimer = 0.5;
+
+    // توليد موجة أولية بعيدة حتى يبدو النفق حيوياً فوراً
+    for (let z = 45; z <= 130; z += 28) {
+        spawnTrafficWave(z);
+    }
+
+    updateHUD();
+}
+
+// تحديث واجهة الأرقام
+function updateHUD() {
+    scoreDisplay.textContent = Math.floor(score);
+    coinsDisplay.textContent = coins;
+    if (magnetTimer > 0) {
+        magnetBarWrap.style.display = 'flex';
+        magnetProgressFill.style.width = `${(magnetTimer / MAGNET_DURATION) * 100}%`;
+    } else {
+        magnetBarWrap.style.display = 'none';
+    }
+}
+
+// توليد موجات السيارات والحافلات والعملات بشكل متوازن وقابل للعب دائماً
+function spawnTrafficWave(zPos = MAX_Z) {
+    // نضمن دائماً وجود مسار واحد على الأقل مفتوح أو قابل للقفز
+    const openLane = LANES[Math.floor(Math.random() * LANES.length)];
+    const pattern = Math.random();
+
+    LANES.forEach(lane => {
+        if (lane === openLane) {
+            // وضع صف عملات ذهبية أو مغناطيس في المسار المفتوح
+            if (Math.random() < 0.12 && magnetTimer <= 0) {
+                collectibles.push({
+                    type: 'magnet',
+                    lane: lane,
+                    x: lane * 1.15,
+                    y: 0.7,
+                    z: zPos + 2,
+                    collected: false
+                });
+            } else if (Math.random() < 0.75) {
+                const coinCount = 4 + Math.floor(Math.random() * 3);
+                for (let i = 0; i < coinCount; i++) {
+                    collectibles.push({
+                        type: 'coin',
+                        lane: lane,
+                        x: lane * 1.15,
+                        y: 0.65,
+                        z: zPos + i * 3.2,
+                        collected: false
+                    });
+                }
+            }
+            return;
+        }
+        // في المسارات الأخرى نضع سيارات أو حواجز صغيرة
+        if (pattern < 0.75 || lane === (openLane === 0 ? 1 : 0)) {
+            const vTemplate = VEHICLE_TYPES[Math.floor(Math.random() * VEHICLE_TYPES.length)];
+            // سرعة نسبية للسيارات (بعضها يتحرك للأمام ببطء داخل النفق، والحواجز ثابتة)
+            const isStaticObstacle = vTemplate.kind === 'barrier' || vTemplate.kind === 'cones';
+            const relSpeed = isStaticObstacle ? 0 : (4 + Math.random() * 5);
+            obstacles.push({
+                ...vTemplate,
+                lane: lane,
+                x: lane * 1.15,
+                z: zPos + Math.random() * 4,
+                relSpeed: relSpeed
+            });
+
+            // أحياناً نضع عملات فوق سقف السيارة لتشجيع القفز!
+            if (vTemplate.kind === 'car' && Math.random() < 0.45) {
+                for (let c = -1; c <= 1; c++) {
+                    collectibles.push({
+                        type: 'coin',
+                        lane: lane,
+                        x: lane * 1.15,
+                        y: vTemplate.height + 0.65,
+                        z: zPos + c * 2.2,
+                        collected: false
+                    });
+                }
+            }
+        }
+    });
+}
+
+// التحكم بحركة اللاعب
+function moveLeft() {
+    if (gameState !== STATE.PLAYING) return;
+    // في العرض العربي أو المنظور العادي: السهم الأيسر يحرك لليسار (-1)
+    if (player.lane > -1) {
+        player.lane--;
+        player.tilt = -0.35;
+        sfx.dodge();
+        spawnSparkParticles(player.visualX, 0.1, PLAYER_Z, '#38bdf8', 6);
+    }
+}
+
+function moveRight() {
+    if (gameState !== STATE.PLAYING) return;
+    if (player.lane < 1) {
+        player.lane++;
+        player.tilt = 0.35;
+        sfx.dodge();
+        spawnSparkParticles(player.visualX, 0.1, PLAYER_Z, '#38bdf8', 6);
+    }
+}
+
+function jump() {
+    if (gameState !== STATE.PLAYING) return;
+    if (!player.isJumping) {
+        player.isJumping = true;
+        player.isDucking = false;
+        player.vy = 11.8;
+        sfx.jump();
+        spawnSparkParticles(player.visualX, 0.1, PLAYER_Z, '#fbbf24', 10);
+    }
+}
+
+function duck() {
+    if (gameState !== STATE.PLAYING) return;
+    if (player.isJumping) {
+        // هبوط سريع من الهواء
+        player.vy = -18;
+    }
+    player.isDucking = true;
+    player.duckTimer = 0.65;
+    sfx.dodge();
+}
+
+// الاستماع للوحة المفاتيح
+window.addEventListener('keydown', (e) => {
+    if (e.code === 'ArrowLeft' || e.code === 'KeyA') moveLeft();
+    else if (e.code === 'ArrowRight' || e.code === 'KeyD') moveRight();
+    else if (e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'Space') {
+        e.preventDefault();
+        jump();
+    } else if (e.code === 'ArrowDown' || e.code === 'KeyS') {
+        e.preventDefault();
+        duck();
+    } else if (e.code === 'Escape' || e.code === 'KeyP') {
+        togglePause();
+    }
+});
+
+// الاستماع للسحب باللمس (Swipe Gestures) للهواتف والأجهزة اللوحية
+let touchStartX = 0;
+let touchStartY = 0;
+canvas.addEventListener('touchstart', (e) => {
+    if (e.touches.length > 0) {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+    }
+}, { passive: true });
+
+canvas.addEventListener('touchend', (e) => {
+    if (e.changedTouches.length > 0 && gameState === STATE.PLAYING) {
+        const dx = e.changedTouches[0].clientX - touchStartX;
+        const dy = e.changedTouches[0].clientY - touchStartY;
+        if (Math.abs(dx) > Math.abs(dy)) {
+            if (dx > 28) moveRight();
+            else if (dx < -28) moveLeft();
+        } else {
+            if (dy < -28) jump();
+            else if (dy > 28) duck();
+        }
+    }
+}, { passive: true });
+
+// أزرار اللمس الإضافية
+document.getElementById('btn-left').addEventListener('click', moveLeft);
+document.getElementById('btn-right').addEventListener('click', moveRight);
+document.getElementById('btn-up').addEventListener('click', jump);
+document.getElementById('btn-down').addEventListener('click', duck);
+
+// أزرار الواجهة
+document.getElementById('start-btn').addEventListener('click', () => {
+    sfx.init();
+    sfx.whistle();
+    startScreen.classList.add('hidden');
+    resetGame();
+    gameState = STATE.PLAYING;
+});
+
+document.getElementById('restart-btn').addEventListener('click', () => {
+    sfx.init();
+    sfx.whistle();
+    gameoverScreen.classList.add('hidden');
+    resetGame();
+    gameState = STATE.PLAYING;
+});
+
+function togglePause() {
+    if (gameState === STATE.PLAYING) {
+        gameState = STATE.PAUSED;
+        pauseScreen.classList.remove('hidden');
+    } else if (gameState === STATE.PAUSED) {
+        gameState = STATE.PLAYING;
+        pauseScreen.classList.add('hidden');
+    }
+}
+
+document.getElementById('pause-btn').addEventListener('click', togglePause);
+document.getElementById('resume-btn').addEventListener('click', togglePause);
+
+document.getElementById('sound-btn').addEventListener('click', (e) => {
+    sfx.muted = !sfx.muted;
+    e.currentTarget.textContent = sfx.muted ? '🔇' : '🔊';
+});
+
+// جزيئات التأثيرات البصرية (شرارات لوح التزلج والعملات)
+function spawnSparkParticles(x, y, z, color, count = 8) {
+    for (let i = 0; i < count; i++) {
+        particles.push({
+            x: x + (Math.random() - 0.5) * 0.4,
+            y: y + Math.random() * 0.3,
+            z: z,
+            vx: (Math.random() - 0.5) * 3.5,
+            vy: 1.5 + Math.random() * 3.5,
+            vz: -2 - Math.random() * 4,
+            color: color,
+            life: 0.4 + Math.random() * 0.25,
+            maxLife: 0.65
+        });
+    }
+}
+
+// ==========================================
+// دوال الرسم الواقعي للنفق والسيارات والشخصيات
+// ==========================================
+
+function drawTunnelAndRoad() {
+    const horizonY = height * 0.44;
+    const vanishX = width * 0.5;
+
+    // 1. خلفية النفق البعيدة (تدرج ضوئي عميق في نهاية النفق)
+    const bgGrad = ctx.createRadialGradient(vanishX, horizonY, 5, vanishX, horizonY, Math.max(width, height) * 0.75);
+    bgGrad.addColorStop(0, '#bae6fd'); // ضوء نهار خافت في نهاية النفق البعيدة
+    bgGrad.addColorStop(0.12, '#334155');
+    bgGrad.addColorStop(0.45, '#1e293b');
+    bgGrad.addColorStop(1, '#090d16');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, width, height);
+
+    // 2. رسم جدران وسقف النفق المقوس على شكل شرائح عمق (Z-Slices) لإعطاء إحساس حقيقي بالسرعة
+    const sliceStep = 10;
+    const offsetZ = distanceTraveled % sliceStep;
+
+    for (let z = MAX_Z; z >= 2; z -= sliceStep) {
+        const z1 = Math.max(1.5, z - offsetZ);
+        const z2 = Math.max(1.0, z1 - sliceStep);
+
+        const p1Left = project(-2.35, 0, z1);
+        const p1Right = project(2.35, 0, z1);
+        const p1Top = project(0, 5.2, z1);
+
+        const p2Left = project(-2.35, 0, z2);
+        const p2Right = project(2.35, 0, z2);
+        const p2Top = project(0, 5.2, z2);
+
+        // قوس النفق الخرساني
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(p2Left.x, p2Left.y);
+        ctx.quadraticCurveTo(p2Left.x, p2Top.y, vanishX, p2Top.y);
+        ctx.quadraticCurveTo(p2Right.x, p2Top.y, p2Right.x, p2Right.y);
+        ctx.lineTo(p1Right.x, p1Right.y);
+        ctx.quadraticCurveTo(p1Right.x, p1Top.y, vanishX, p1Top.y);
+        ctx.quadraticCurveTo(p1Left.x, p1Top.y, p1Left.x, p1Left.y);
+        ctx.closePath();
+
+        const shade = Math.max(0.15, 1 - (z1 / MAX_Z));
+        const isStripe = Math.floor((z + distanceTraveled) / sliceStep) % 2 === 0;
+        ctx.fillStyle = isStripe
+            ? `rgba(45, 55, 72, ${0.85 * shade})`
+            : `rgba(30, 41, 59, ${0.9 * shade})`;
+        ctx.fill();
+
+        // أضلاع حديدية مقوسة للنفق
+        ctx.strokeStyle = `rgba(15, 23, 42, ${0.65 * shade})`;
+        ctx.lineWidth = Math.max(1, 3 * (1 - z1 / MAX_Z));
+        ctx.stroke();
+        ctx.restore();
+
+        // مصابيح سقف النفق المضيئة (صف أوسط أبيض بارد وصفان جانبيان أصفر دافئ مثل الصورة)
+        if (z1 > 3 && z1 < MAX_Z - 10) {
+            const lightZ1 = z1 - 1.5;
+            const lightZ2 = z1 - 6.5;
+            if (lightZ2 > 1.5) {
+                // المصباح الأوسط الأزرق/الأبيض
+                drawCeilingLight(0, 4.95, lightZ1, lightZ2, 0.22, '#e0f2fe', '#38bdf8');
+                // المصباح الأيسر الأصفر الدافئ
+                drawCeilingLight(-1.25, 4.55, lightZ1, lightZ2, 0.2, '#fef08a', '#f59e0b');
+                // المصباح الأيمن الأصفر الدافئ
+                drawCeilingLight(1.25, 4.55, lightZ1, lightZ2, 0.2, '#fef08a', '#f59e0b');
+            }
+        }
+
+        // مراوح التهوية الضخمة على جدار النفق (تظهر بشكل دوري مثل الصورة)
+        if (Math.floor((z + distanceTraveled) / 40) !== Math.floor((z - sliceStep + distanceTraveled) / 40) && z1 > 8 && z1 < 110) {
+            drawVentilationFan(-1.95, 3.6, z1);
+            drawTunnelSign(2.05, 2.5, z1);
+        }
+    }
+
+    // 3. الطريق الإسفلتي الواقعي
+    const roadNearL = project(-2.1, 0, 1.2);
+    const roadNearR = project(2.1, 0, 1.2);
+    const roadFarL = project(-2.1, 0, MAX_Z);
+    const roadFarR = project(2.1, 0, MAX_Z);
+
+    const asphaltGrad = ctx.createLinearGradient(0, horizonY, 0, height);
+    asphaltGrad.addColorStop(0, '#1e293b');
+    asphaltGrad.addColorStop(0.3, '#272f3d');
+    asphaltGrad.addColorStop(1, '#11161f');
+
+    ctx.fillStyle = asphaltGrad;
+    ctx.beginPath();
+    ctx.moveTo(roadNearL.x, roadNearL.y);
+    ctx.lineTo(roadFarL.x, roadFarL.y);
+    ctx.lineTo(roadFarR.x, roadFarR.y);
+    ctx.lineTo(roadNearR.x, roadNearR.y);
+    ctx.closePath();
+    ctx.fill();
+
+    // أرصفة جانبية خرسانية مع شرائط تحذيرية حمراء وبيضاء
+    drawSideCurb(-2.1, -1.85);
+    drawSideCurb(1.85, 2.1);
+
+    // خطوط المسارات الثلاثة المتقطعة المتحركة
+    const dashPeriod = 7;
+    const dashOffset = distanceTraveled % dashPeriod;
+    for (let z = MAX_Z; z >= 2; z -= dashPeriod) {
+        const zStart = Math.max(1.5, z - dashOffset);
+        const zEnd = Math.max(1.2, zStart - 3.4);
+        if (zStart > zEnd) {
+            drawRoadLine(-0.58, zStart, zEnd, 0.055, 'rgba(241, 245, 249, 0.78)');
+            drawRoadLine(0.58, zStart, zEnd, 0.055, 'rgba(241, 245, 249, 0.78)');
+        }
+    }
+    // خطوط الحافة الصفراء المستمرة
+    drawRoadLine(-1.75, MAX_Z, 1.3, 0.06, 'rgba(250, 204, 21, 0.65)');
+    drawRoadLine(1.75, MAX_Z, 1.3, 0.06, 'rgba(250, 204, 21, 0.65)');
+}
+
+function drawCeilingLight(x, y, z1, z2, halfW, coreColor, glowColor) {
+    const a = project(x - halfW, y, z1);
+    const b = project(x + halfW, y, z1);
+    const c = project(x + halfW, y, z2);
+    const d = project(x - halfW, y, z2);
+
+    ctx.save();
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur = 14;
+    ctx.fillStyle = coreColor;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.lineTo(c.x, c.y);
+    ctx.lineTo(d.x, d.y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+}
+
+function drawVentilationFan(x, y, z) {
+    const p = project(x, y, z);
+    const r = p.scale * 0.42;
+    if (r < 4) return;
+
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    // جسم التوربين المعدني
+    ctx.fillStyle = '#475569';
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.lineWidth = Math.max(1.5, r * 0.14);
+    ctx.strokeStyle = '#94a3b8';
+    ctx.stroke();
+
+    // شفرات المروحة الدوارة
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.82, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.rotate(performance.now() * 0.008);
+    ctx.fillStyle = '#cbd5e1';
+    for (let i = 0; i < 6; i++) {
+        ctx.rotate(Math.PI / 3);
+        ctx.fillRect(-r * 0.08, 0, r * 0.16, r * 0.75);
+    }
+    ctx.restore();
+}
+
+function drawTunnelSign(x, y, z) {
+    const p = project(x, y, z);
+    const s = p.scale * 0.34;
+    if (s < 4) return;
+
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    // لوحة إرشادية خضراء أو تحذيرية مثل الصورة
+    ctx.fillStyle = '#15803d';
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = Math.max(1, s * 0.1);
+    ctx.fillRect(-s * 0.6, -s * 0.75, s * 1.2, s * 1.5);
+    ctx.strokeRect(-s * 0.6, -s * 0.75, s * 1.2, s * 1.5);
+
+    // سهم أبيض داخل اللوحة
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(-s * 0.08, -s * 0.35, s * 0.16, s * 0.8);
+    ctx.beginPath();
+    ctx.moveTo(0, -s * 0.55);
+    ctx.lineTo(-s * 0.28, -s * 0.25);
+    ctx.lineTo(s * 0.28, -s * 0.25);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+}
+
+function drawSideCurb(x1, x2) {
+    const n1 = project(x1, 0.18, 1.2);
+    const n2 = project(x2, 0.18, 1.2);
+    const f2 = project(x2, 0.18, MAX_Z);
+    const f1 = project(x1, 0.18, MAX_Z);
+
+    ctx.fillStyle = '#475569';
+    ctx.beginPath();
+    ctx.moveTo(n1.x, n1.y);
+    ctx.lineTo(n2.x, n2.y);
+    ctx.lineTo(f2.x, f2.y);
+    ctx.lineTo(f1.x, f1.y);
+    ctx.closePath();
+    ctx.fill();
+
+    // شرائط تحذيرية حمراء وبيضاء متحركة على الرصيف
+    const stripeStep = 6;
+    const offset = distanceTraveled % stripeStep;
+    for (let z = MAX_Z; z >= 2; z -= stripeStep) {
+        const z1 = Math.max(1.5, z - offset);
+        const z2 = Math.max(1.2, z1 - stripeStep * 0.5);
+        if (z1 > z2) {
+            const p1 = project(x1, 0.18, z1);
+            const p2 = project(x2, 0.18, z1);
+            const p3 = project(x2, 0.18, z2);
+            const p4 = project(x1, 0.18, z2);
+            const isRed = Math.floor((z + distanceTraveled) / stripeStep) % 2 === 0;
+            ctx.fillStyle = isRed ? '#dc2626' : '#f8fafc';
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.lineTo(p3.x, p3.y);
+            ctx.lineTo(p4.x, p4.y);
+            ctx.closePath();
+            ctx.fill();
+        }
+    }
+}
+
+function drawRoadLine(x, z1, z2, halfW, color) {
+    const a = project(x - halfW, 0.01, z1);
+    const b = project(x + halfW, 0.01, z1);
+    const c = project(x + halfW, 0.01, z2);
+    const d = project(x - halfW, 0.01, z2);
+
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.lineTo(c.x, c.y);
+    ctx.lineTo(d.x, d.y);
+    ctx.closePath();
+    ctx.fill();
+}
+
+// رسم المركبات الواقعية (السيارات الواقعية + الحواجز الصغيرة والأقماع)
+function drawVehicle(obs) {
+    const zFront = obs.z - obs.length * 0.5;
+    const zBack = obs.z + obs.length * 0.5;
+    if (zBack < 1.2 || zFront > MAX_Z) return;
+
+    const clampedFront = Math.max(1.2, zFront);
+    const halfW = (obs.kind === 'barrier' || obs.kind === 'cones') ? 0.36 : 0.44;
+    const h = obs.height;
+
+    const fBL = project(obs.x - halfW, 0, clampedFront);
+    const fBR = project(obs.x + halfW, 0, clampedFront);
+    const fTL = project(obs.x - halfW, h, clampedFront);
+    const fTR = project(obs.x + halfW, h, clampedFront);
+
+    const bTL = project(obs.x - halfW, h, zBack);
+    const bTR = project(obs.x + halfW, h, zBack);
+    const bBL = project(obs.x - halfW, 0, zBack);
+    const bBR = project(obs.x + halfW, 0, zBack);
+
+    ctx.save();
+
+    // 1. ظل واقعي تحت المركبة أو الحاجز على الإسفلت
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.52)';
+    ctx.beginPath();
+    ctx.moveTo(fBL.x - 5, fBL.y + 2);
+    ctx.lineTo(fBR.x + 5, fBR.y + 2);
+    ctx.lineTo(bBR.x + 3, bBR.y);
+    ctx.lineTo(bBL.x - 3, bBL.y);
+    ctx.closePath();
+    ctx.fill();
+
+    const bodyW = fBR.x - fBL.x;
+    const bodyH = fBL.y - fTL.y;
+
+    if (obs.kind === 'barrier') {
+        // حاجز مروري صغير الحجم (أحمر وأبيض) مع أرجل معدنية ومصباح تحذير علوي
+        const legW = bodyW * 0.1;
+        const boardH = bodyH * 0.56;
+        const boardTop = fTL.y + bodyH * 0.12;
+
+        // أرجل الحاجز المعدنية
+        ctx.fillStyle = '#334155';
+        ctx.fillRect(fTL.x + bodyW * 0.14, boardTop + boardH * 0.5, legW, fBL.y - (boardTop + boardH * 0.5));
+        ctx.fillRect(fTR.x - bodyW * 0.14 - legW, boardTop + boardH * 0.5, legW, fBL.y - (boardTop + boardH * 0.5));
+
+        // لوح الحاجز المخطط بالأحمر والأبيض
+        ctx.fillStyle = '#dc2626';
+        roundRect(ctx, fTL.x + bodyW * 0.05, boardTop, bodyW * 0.9, boardH, 4, true, false);
+        ctx.fillStyle = '#ffffff';
+        const stripeW = (bodyW * 0.9) / 5;
+        for (let i = 1; i < 5; i += 2) {
+            ctx.fillRect(fTL.x + bodyW * 0.05 + i * stripeW, boardTop, stripeW, boardH);
+        }
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 1.5;
+        roundRect(ctx, fTL.x + bodyW * 0.05, boardTop, bodyW * 0.9, boardH, 4, false, true);
+
+        // مصباح تحذير برتقالي صغير أعلى الحاجز
+        ctx.fillStyle = '#fbbf24';
+        ctx.beginPath();
+        ctx.arc(fTL.x + bodyW * 0.5, boardTop - bodyH * 0.06, Math.max(2, bodyH * 0.1), 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+        return;
+    }
+
+    if (obs.kind === 'cones') {
+        // مجموعة من 3 أقماع مرورية صغيرة برتقالية وبيضاء
+        const coneCount = 3;
+        const stepX = bodyW / coneCount;
+        for (let c = 0; c < coneCount; c++) {
+            const cx = fBL.x + stepX * (c + 0.5);
+            const coneW = stepX * 0.62;
+            const coneH = bodyH * 0.92;
+            const baseY = fBL.y;
+            const topY = baseY - coneH;
+
+            // قاعدة القمع
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(cx - coneW * 0.58, baseY - coneH * 0.12, coneW * 1.16, coneH * 0.12);
+
+            // مخروط القمع البرتقالي
+            ctx.fillStyle = '#f97316';
+            ctx.beginPath();
+            ctx.moveTo(cx - coneW * 0.45, baseY - coneH * 0.1);
+            ctx.lineTo(cx - coneW * 0.12, topY);
+            ctx.lineTo(cx + coneW * 0.12, topY);
+            ctx.lineTo(cx + coneW * 0.45, baseY - coneH * 0.1);
+            ctx.closePath();
+            ctx.fill();
+
+            // شريط عاكس أبيض في المنتصف
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.moveTo(cx - coneW * 0.32, baseY - coneH * 0.36);
+            ctx.lineTo(cx - coneW * 0.22, baseY - coneH * 0.62);
+            ctx.lineTo(cx + coneW * 0.22, baseY - coneH * 0.62);
+            ctx.lineTo(cx + coneW * 0.32, baseY - coneH * 0.36);
+            ctx.closePath();
+            ctx.fill();
+        }
+        ctx.restore();
+        return;
+    }
+
+    // 2. الجوانب ثلاثية الأبعاد للسيارة (الجانب الأيسر أو الأيمن حسب موقع المسار)
+    if (obs.x > 0) {
+        // نرى الجانب الأيسر
+        ctx.fillStyle = obs.accent;
+        ctx.beginPath();
+        ctx.moveTo(fBL.x, fBL.y);
+        ctx.lineTo(bBL.x, bBL.y);
+        ctx.lineTo(bTL.x, bTL.y);
+        ctx.lineTo(fTL.x, fTL.y);
+        ctx.closePath();
+        ctx.fill();
+    } else if (obs.x < 0) {
+        // نرى الجانب الأيمن
+        ctx.fillStyle = obs.accent;
+        ctx.beginPath();
+        ctx.moveTo(fBR.x, fBR.y);
+        ctx.lineTo(bBR.x, bBR.y);
+        ctx.lineTo(bTR.x, bTR.y);
+        ctx.lineTo(fTR.x, fTR.y);
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    // 3. سقف السيارة
+    ctx.fillStyle = obs.color;
+    ctx.beginPath();
+    ctx.moveTo(fTL.x, fTL.y);
+    ctx.lineTo(fTR.x, fTR.y);
+    ctx.lineTo(bTR.x, bTR.y);
+    ctx.lineTo(bTL.x, bTL.y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // 4. الواجهة الأمامية للسيارة الواقعية (المواجهة للاعب)
+    const hoodTop = fTL.y + bodyH * 0.42;
+    const cabinInset = bodyW * 0.13;
+
+    // مقصورة الركاب العلوية
+    ctx.fillStyle = obs.color;
+    ctx.beginPath();
+    ctx.moveTo(fTL.x + cabinInset, fTL.y);
+    ctx.lineTo(fTR.x - cabinInset, fTL.y);
+    ctx.lineTo(fTR.x - cabinInset * 0.4, hoodTop);
+    ctx.lineTo(fTL.x + cabinInset * 0.4, hoodTop);
+    ctx.closePath();
+    ctx.fill();
+
+    // الزجاج الأمامي للسيارة
+    ctx.fillStyle = '#1e293b';
+    ctx.beginPath();
+    ctx.moveTo(fTL.x + cabinInset * 1.25, fTL.y + bodyH * 0.06);
+    ctx.lineTo(fTR.x - cabinInset * 1.25, fTL.y + bodyH * 0.06);
+    ctx.lineTo(fTR.x - cabinInset * 0.65, hoodTop - 2);
+    ctx.lineTo(fTL.x + cabinInset * 0.65, hoodTop - 2);
+    ctx.closePath();
+    ctx.fill();
+
+    // انعكاس ضوء النفق على زجاج السيارة
+    ctx.fillStyle = 'rgba(186, 230, 253, 0.22)';
+    ctx.beginPath();
+    ctx.moveTo(fTL.x + cabinInset * 1.35, fTL.y + bodyH * 0.08);
+    ctx.lineTo(fTL.x + bodyW * 0.48, fTL.y + bodyH * 0.08);
+    ctx.lineTo(fTL.x + bodyW * 0.35, hoodTop - 3);
+    ctx.lineTo(fTL.x + cabinInset * 0.8, hoodTop - 3);
+    ctx.closePath();
+    ctx.fill();
+
+    // جسم السيارة السفلي وغطاء المحرك
+    const carGrad = ctx.createLinearGradient(0, hoodTop, 0, fBL.y);
+    carGrad.addColorStop(0, obs.color);
+    carGrad.addColorStop(1, obs.accent);
+    ctx.fillStyle = carGrad;
+    roundRect(ctx, fTL.x, hoodTop, bodyW, fBL.y - hoodTop, 6, true, false);
+
+    // الإطارات السفلية
+    ctx.fillStyle = '#090d16';
+    ctx.fillRect(fTL.x + bodyW * 0.06, fBL.y - bodyH * 0.08, bodyW * 0.16, bodyH * 0.12);
+    ctx.fillRect(fTR.x - bodyW * 0.22, fBL.y - bodyH * 0.08, bodyW * 0.16, bodyH * 0.12);
+
+    // شبكة التهوية والمصابيح الأمامية الساطعة
+    ctx.fillStyle = '#0f172a';
+    roundRect(ctx, fTL.x + bodyW * 0.3, hoodTop + (fBL.y - hoodTop) * 0.45, bodyW * 0.4, (fBL.y - hoodTop) * 0.28, 3, true, false);
+    drawHeadlights(fTL.x, hoodTop + (fBL.y - hoodTop) * 0.35, bodyW, (fBL.y - hoodTop) * 0.22);
+
+    ctx.restore();
+}
+
+function drawHeadlights(leftX, y, totalW, h) {
+    ctx.save();
+    ctx.shadowColor = '#fef08a';
+    ctx.shadowBlur = 15;
+    ctx.fillStyle = '#fef9c3';
+    const lightW = totalW * 0.16;
+    roundRect(ctx, leftX + totalW * 0.08, y, lightW, h, 3, true, false);
+    roundRect(ctx, leftX + totalW * 0.76, y, lightW, h, 3, true, false);
+    ctx.restore();
+}
+
+// رسم العملات الذهبية والمغناطيس
+function drawCollectible(item) {
+    if (item.collected || item.z < 1.2 || item.z > MAX_Z) return;
+
+    const bob = Math.sin(performance.now() * 0.006 + item.z) * 0.12;
+    const p = project(item.x, item.y + bob, item.z);
+    const r = p.scale * 0.24;
+    if (r < 2) return;
+
+    ctx.save();
+    ctx.translate(p.x, p.y);
+
+    if (item.type === 'coin') {
+        // دوران العملة الذهبية
+        const spin = Math.abs(Math.cos(performance.now() * 0.005 + item.z * 0.3));
+        const rx = Math.max(r * 0.25, r * spin);
+
+        ctx.shadowColor = '#f59e0b';
+        ctx.shadowBlur = 10;
+
+        // حافة العملة
+        ctx.fillStyle = '#d97706';
+        ctx.beginPath();
+        ctx.ellipse(2, 0, rx, r, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // وجه العملة الذهبي
+        const coinGrad = ctx.createLinearGradient(-rx, -r, rx, r);
+        coinGrad.addColorStop(0, '#fef08a');
+        coinGrad.addColorStop(0.5, '#facc15');
+        coinGrad.addColorStop(1, '#ca8a04');
+        ctx.fillStyle = coinGrad;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, rx, r, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // نجمة داخل العملة كما في الصورة
+        if (spin > 0.45 && r > 6) {
+            ctx.fillStyle = '#b45309';
+            drawStar(ctx, 0, 0, 5, r * 0.5, r * 0.22);
+        }
+    } else if (item.type === 'magnet') {
+        // مغناطيس على شكل حرف U أحمر وأزرق مثل الصورة
+        ctx.shadowColor = '#ef4444';
+        ctx.shadowBlur = 16;
+        ctx.rotate(Math.sin(performance.now() * 0.005) * 0.25);
+
+        const s = r * 1.15;
+        ctx.lineWidth = s * 0.42;
+        ctx.lineCap = 'butt';
+
+        // النصف الأيسر (أزرق)
+        ctx.strokeStyle = '#2563eb';
+        ctx.beginPath();
+        ctx.arc(0, 0, s * 0.65, Math.PI * 0.5, Math.PI * 1.5);
+        ctx.stroke();
+
+        // النصف الأيمن (أحمر)
+        ctx.strokeStyle = '#dc2626';
+        ctx.beginPath();
+        ctx.arc(0, 0, s * 0.65, -Math.PI * 0.5, Math.PI * 0.5);
+        ctx.stroke();
+
+        // أطراف المغناطيس الفضية
+        ctx.fillStyle = '#e2e8f0';
+        ctx.fillRect(s * 0.45, -s * 0.86, s * 0.35, s * 0.42);
+        ctx.fillRect(s * 0.45, s * 0.44, s * 0.35, s * 0.42);
+    }
+
+    ctx.restore();
+}
+
+// رسم البطل فوق لوح التزلج (مطابق تماماً لشخصية الصورة: سترة رمادية داكنة بغطاء رأس، قبعة بنية/خضراء، جينز أزرق، حذاء برتقالي ولوح تزلج برتقالي وخشبي)
+function drawPlayer() {
+    const pGround = project(player.visualX, 0, PLAYER_Z);
+    const p = project(player.visualX, player.y, PLAYER_Z);
+    const s = p.scale; // وحدة القياس
+
+    // 1. ظل اللاعب على الإسفلت
+    ctx.save();
+    const shadowScale = Math.max(0.4, 1 - player.y * 0.22);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.beginPath();
+    ctx.ellipse(pGround.x, pGround.y + 4, s * 0.36 * shadowScale, s * 0.12 * shadowScale, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(player.tilt);
+
+    // تقليص الارتفاع عند الانزلاق
+    const scaleY = player.isDucking ? 0.62 : 1.0;
+    ctx.scale(1, scaleY);
+
+    // 2. لوح التزلج البرتقالي والخشبي ("هذيك اللعيبة ديال الهروب")
+    const boardW = s * 0.52;
+    const boardH = s * 0.14;
+
+    // توهج أزرق تحت لوح التزلج
+    ctx.save();
+    ctx.shadowColor = '#38bdf8';
+    ctx.shadowBlur = 18;
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.35)';
+    ctx.beginPath();
+    ctx.ellipse(0, -boardH * 0.3, boardW * 0.65, boardH * 0.7, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // عجلات لوح التزلج البرتقالية
+    ctx.fillStyle = '#f97316';
+    ctx.beginPath();
+    ctx.arc(-boardW * 0.32, -boardH * 0.35, boardH * 0.42, 0, Math.PI * 2);
+    ctx.arc(boardW * 0.32, -boardH * 0.35, boardH * 0.42, 0, Math.PI * 2);
+    ctx.fill();
+
+    // جسم لوح التزلج المنحني
+    ctx.fillStyle = '#ea580c';
+    roundRect(ctx, -boardW * 0.5, -boardH * 1.1, boardW, boardH * 0.65, 8, true, false);
+    ctx.fillStyle = '#fed7aa'; // حافة خشبية علوية
+    roundRect(ctx, -boardW * 0.46, -boardH * 1.15, boardW * 0.92, boardH * 0.25, 4, true, false);
+
+    // 3. الساقان (جينز أزرق وحذاء رياضي أسود وبرتقالي)
+    const legSwing = Math.sin(player.animTime * 10) * (player.isJumping ? 0.04 : 0.02);
+    // الساق اليسرى
+    ctx.fillStyle = '#1d4ed8';
+    roundRect(ctx, -s * 0.16, -s * 0.68, s * 0.12, s * 0.48, 6, true, false);
+    // الساق اليمنى
+    ctx.fillStyle = '#2563eb';
+    roundRect(ctx, s * 0.04, -s * 0.68 + legSwing * s, s * 0.12, s * 0.48, 6, true, false);
+
+    // الحذاء الرياضي البرتقالي والأسود
+    ctx.fillStyle = '#1e293b';
+    roundRect(ctx, -s * 0.19, -s * 0.24, s * 0.16, s * 0.11, 5, true, false);
+    roundRect(ctx, s * 0.03, -s * 0.24, s * 0.16, s * 0.11, 5, true, false);
+    ctx.fillStyle = '#f97316';
+    ctx.fillRect(-s * 0.18, -s * 0.18, s * 0.14, s * 0.04);
+    ctx.fillRect(s * 0.04, -s * 0.18, s * 0.14, s * 0.04);
+
+    // 4. الجذع والسترة الرمادية الداكنة (Hoodie) مع خطوط برتقالية
+    ctx.fillStyle = '#1f2937';
+    roundRect(ctx, -s * 0.22, -s * 1.18, s * 0.44, s * 0.54, 12, true, false);
+
+    // القميص الأحمر الداخلي
+    ctx.fillStyle = '#dc2626';
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.06, -s * 1.16);
+    ctx.lineTo(s * 0.06, -s * 1.16);
+    ctx.lineTo(0, -s * 0.92);
+    ctx.closePath();
+    ctx.fill();
+
+    // الذراعان ممدودتان للتوازن على لوح التزلج
+    const armWave = Math.sin(player.animTime * 8) * 0.12;
+    ctx.save();
+    ctx.translate(-s * 0.21, -s * 1.1);
+    ctx.rotate(0.45 + armWave);
+    ctx.fillStyle = '#1f2937';
+    roundRect(ctx, -s * 0.08, 0, s * 0.1, s * 0.36, 5, true, false);
+    ctx.strokeStyle = '#f97316';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.06, 2);
+    ctx.lineTo(-s * 0.06, s * 0.32);
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(s * 0.21, -s * 1.1);
+    ctx.rotate(-0.45 - armWave);
+    ctx.fillStyle = '#1f2937';
+    roundRect(ctx, -s * 0.02, 0, s * 0.1, s * 0.36, 5, true, false);
+    ctx.strokeStyle = '#f97316';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(s * 0.06, 2);
+    ctx.lineTo(s * 0.06, s * 0.32);
+    ctx.stroke();
+    ctx.restore();
+
+    // 5. الرأس وغطاء السترة والقبعة الخضراء/البنية
+    // غطاء السترة الخلفي
+    ctx.fillStyle = '#111827';
+    ctx.beginPath();
+    ctx.arc(0, -s * 1.36, s * 0.22, 0, Math.PI * 2);
+    ctx.fill();
+
+    // الوجه
+    ctx.fillStyle = '#fdba74';
+    ctx.beginPath();
+    ctx.arc(0, -s * 1.35, s * 0.16, 0, Math.PI * 2);
+    ctx.fill();
+
+    // القبعة (Cap) باللون الأخضر الزيتوني وحافة برتقالية كما في الصورة
+    ctx.fillStyle = '#3f6212';
+    ctx.beginPath();
+    ctx.arc(0, -s * 1.4, s * 0.165, Math.PI, 0);
+    ctx.fill();
+    // حافة القبعة الأمامية
+    ctx.fillStyle = '#d97706';
+    roundRect(ctx, -s * 0.14, -s * 1.42, s * 0.28, s * 0.05, 4, true, false);
+
+    ctx.restore();
+}
+
+// رسم الشرطي والكلب البوليسي في الخلفية عند بداية المطاردة أو الاصطدام
+function drawChaser() {
+    if (chaseTimer <= 0 && gameState !== STATE.GAMEOVER) return;
+
+    const chaserZ = gameState === STATE.GAMEOVER ? PLAYER_Z - 1.1 : PLAYER_Z - 2.3 - (5.0 - chaseTimer) * 0.35;
+    if (chaserZ < 1.3) return;
+
+    const chaserX = player.visualX * 0.85;
+    const p = project(chaserX, 0, chaserZ);
+    const s = p.scale;
+    const runBounce = Math.abs(Math.sin(player.animTime * 16)) * s * 0.08;
+
+    // 1. رسم الشرطي بالبدلة الزرقاء الداكنة والقبعة والهراوة
+    ctx.save();
+    ctx.translate(p.x - s * 0.15, p.y - runBounce);
+
+    // جسم الشرطي
+    ctx.fillStyle = '#1e3a8a';
+    roundRect(ctx, -s * 0.2, -s * 1.1, s * 0.4, s * 0.65, 10, true, false);
+    // حزام أسود
+    ctx.fillStyle = '#090d16';
+    ctx.fillRect(-s * 0.2, -s * 0.68, s * 0.4, s * 0.07);
+    ctx.fillStyle = '#fbbf24';
+    ctx.fillRect(-s * 0.04, -s * 0.69, s * 0.08, s * 0.09);
+
+    // رأس الشرطي
+    ctx.fillStyle = '#fed7aa';
+    ctx.beginPath();
+    ctx.arc(0, -s * 1.26, s * 0.15, 0, Math.PI * 2);
+    ctx.fill();
+
+    // شارب الشرطي الكثيف
+    ctx.fillStyle = '#1f2937';
+    roundRect(ctx, -s * 0.08, -s * 1.22, s * 0.16, s * 0.04, 2, true, false);
+
+    // قبعة الشرطي مع الشارة الذهبية
+    ctx.fillStyle = '#172554';
+    roundRect(ctx, -s * 0.18, -s * 1.44, s * 0.36, s * 0.11, 5, true, false);
+    ctx.fillStyle = '#fbbf24';
+    ctx.beginPath();
+    ctx.arc(0, -s * 1.38, s * 0.035, 0, Math.PI * 2);
+    ctx.fill();
+
+    // الهراوة السوداء مرفوعة في يده
+    ctx.save();
+    ctx.translate(s * 0.22, -s * 0.98);
+    ctx.rotate(Math.sin(player.animTime * 16) * 0.4 - 0.3);
+    ctx.fillStyle = '#0f172a';
+    roundRect(ctx, -s * 0.03, -s * 0.38, s * 0.06, s * 0.42, 3, true, false);
+    ctx.restore();
+
+    ctx.restore();
+
+    // 2. رسم الكلب البوليسي (الراعي الألماني) يركض بجانبه
+    ctx.save();
+    const dogBounce = Math.abs(Math.cos(player.animTime * 18)) * s * 0.09;
+    ctx.translate(p.x + s * 0.24, p.y - dogBounce);
+
+    // جسم الكلب البني والأسود
+    ctx.fillStyle = '#b45309';
+    roundRect(ctx, -s * 0.13, -s * 0.48, s * 0.26, s * 0.32, 8, true, false);
+    ctx.fillStyle = '#1f2937'; // ظهر أسود
+    roundRect(ctx, -s * 0.11, -s * 0.48, s * 0.22, s * 0.14, 6, true, false);
+
+    // رأس الكلب وأذناه المدببتان
+    ctx.fillStyle = '#d97706';
+    ctx.beginPath();
+    ctx.arc(0, -s * 0.56, s * 0.11, 0, Math.PI * 2);
+    ctx.fill();
+
+    // الأذنان
+    ctx.fillStyle = '#1f2937';
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.09, -s * 0.62);
+    ctx.lineTo(-s * 0.05, -s * 0.76);
+    ctx.lineTo(-s * 0.01, -s * 0.64);
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(s * 0.09, -s * 0.62);
+    ctx.lineTo(s * 0.05, -s * 0.76);
+    ctx.lineTo(s * 0.01, -s * 0.64);
+    ctx.fill();
+
+    ctx.restore();
+}
+
+// رسم الجزيئات المتحركة
+function drawParticles() {
+    particles.forEach(pt => {
+        if (pt.z < 1.2) return;
+        const p = project(pt.x, pt.y, pt.z);
+        const alpha = Math.max(0, pt.life / pt.maxLife);
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = pt.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, Math.max(2, p.scale * 0.045), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    });
+}
+
+// دوال مساعدة للرسم الهندسي
+function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
+    if (width < 0) { x += width; width = -width; }
+    if (height < 0) { y += height; height = -height; }
+    const r = Math.min(radius, width / 2, height / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + width, y, x + width, y + height, r);
+    ctx.arcTo(x + width, y + height, x, y + height, r);
+    ctx.arcTo(x, y + height, x, y, r);
+    ctx.arcTo(x, y, x + width, y, r);
+    ctx.closePath();
+    if (fill) ctx.fill();
+    if (stroke) ctx.stroke();
+}
+
+function drawStar(ctx, cx, cy, spikes, outerRadius, innerRadius) {
+    let rot = (Math.PI / 2) * 3;
+    let x = cx;
+    let y = cy;
+    const step = Math.PI / spikes;
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - outerRadius);
+    for (let i = 0; i < spikes; i++) {
+        x = cx + Math.cos(rot) * outerRadius;
+        y = cy + Math.sin(rot) * outerRadius;
+        ctx.lineTo(x, y);
+        rot += step;
+
+        x = cx + Math.cos(rot) * innerRadius;
+        y = cy + Math.sin(rot) * innerRadius;
+        ctx.lineTo(x, y);
+        rot += step;
+    }
+    ctx.lineTo(cx, cy - outerRadius);
+    ctx.closePath();
+    ctx.fill();
+}
+
+// ==========================================
+// حلقة التحديث الفيزيائي والرسم (Game Loop)
+// ==========================================
+
+let lastTime = performance.now();
+
+function update(dt) {
+    if (gameState !== STATE.PLAYING) {
+        if (gameState === STATE.MENU) {
+            // تحريك النفق ببطء في شاشة البداية لإضفاء حيوية
+            distanceTraveled += 14 * dt;
+            player.animTime += dt;
+        }
+        return;
+    }
+
+    // زيادة السرعة تدريجياً لرفع الحماس
+    speed = Math.min(62, speed + 0.42 * dt);
+    const stepDist = speed * dt;
+    distanceTraveled += stepDist;
+    score += stepDist * 1.5;
+    player.animTime += dt;
+
+    if (chaseTimer > 0) chaseTimer -= dt;
+    if (screenShake > 0) screenShake = Math.max(0, screenShake - dt * 25);
+
+    // تحديث مؤقت المغناطيس
+    if (magnetTimer > 0) {
+        magnetTimer = Math.max(0, magnetTimer - dt);
+    }
+
+    // حركة اللاعب الأفقية السلسة بين المسارات
+    const targetX = player.lane * 1.15;
+    player.visualX += (targetX - player.visualX) * Math.min(1, 15 * dt);
+    player.tilt *= Math.pow(0.05, dt);
+
+    // فيزياء القفز والجاذبية
+    if (player.isJumping) {
+        player.y += player.vy * dt;
+        player.vy -= 30 * dt; // جاذبية متوازنة
+        if (player.y <= 0) {
+            player.y = 0;
+            player.vy = 0;
+            player.isJumping = false;
+            spawnSparkParticles(player.visualX, 0.05, PLAYER_Z, '#f97316', 6);
+        }
+    }
+
+    // مؤقت الانزلاق
+    if (player.isDucking) {
+        player.duckTimer -= dt;
+        if (player.duckTimer <= 0) {
+            player.isDucking = false;
+        }
+    }
+
+    // توليد شرارات مستمرة خفيفة خلف لوح التزلج
+    if (!player.isJumping && Math.random() < 0.35) {
+        spawnSparkParticles(player.visualX, 0.08, PLAYER_Z - 0.3, '#38bdf8', 1);
+    }
+
+    // توليد المركبات والعملات الجديدة
+    spawnTimer -= dt;
+    if (spawnTimer <= 0) {
+        spawnTrafficWave(MAX_Z);
+        spawnTimer = Math.max(0.75, 26 / speed);
+    }
+
+    // تحديث المركبات وفحص التصادم
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+        const obs = obstacles[i];
+        obs.z -= (speed - obs.relSpeed) * dt;
+
+        // فحص التصادم مع اللاعب بدقة
+        const zFront = obs.z - obs.length * 0.46;
+        const zBack = obs.z + obs.length * 0.46;
+
+        if (PLAYER_Z >= zFront && PLAYER_Z <= zBack) {
+            const xDist = Math.abs(player.visualX - obs.x);
+            if (xDist < 0.56) {
+                // إذا كان اللاعب يقفز أعلى من ارتفاع السيارة، يمر فوقها بأمان!
+                if (player.y >= obs.height - 0.18) {
+                    // مرور ناجح فوق سقف السيارة!
+                } else {
+                    triggerGameOver();
+                    return;
+                }
+            }
+        }
+
+        if (zBack < 0.5) {
+            obstacles.splice(i, 1);
+        }
+    }
+
+    // تحديث العملات والمغناطيس
+    for (let i = collectibles.length - 1; i >= 0; i--) {
+        const item = collectibles[i];
+        item.z -= speed * dt;
+
+        // تأثير المغناطيس: جذب العملات القريبة نحو اللاعب
+        if (magnetTimer > 0 && item.type === 'coin' && !item.collected && item.z < 36 && item.z > 2) {
+            item.x += (player.visualX - item.x) * Math.min(1, 10 * dt);
+            item.y += ((player.y + 0.7) - item.y) * Math.min(1, 10 * dt);
+            item.z += (PLAYER_Z - item.z) * Math.min(1, 8 * dt);
+        }
+
+        // التقاط العنصر
+        if (!item.collected && Math.abs(item.z - PLAYER_Z) < 1.35) {
+            const dx = Math.abs(item.x - player.visualX);
+            const dy = Math.abs(item.y - (player.y + 0.65));
+            if (dx < 0.72 && dy < 1.15) {
+                item.collected = true;
+                if (item.type === 'coin') {
+                    coins++;
+                    score += 15;
+                    sfx.coin();
+                    spawnSparkParticles(item.x, item.y, item.z, '#fde047', 7);
+                } else if (item.type === 'magnet') {
+                    magnetTimer = MAGNET_DURATION;
+                    sfx.magnet();
+                    spawnSparkParticles(item.x, item.y, item.z, '#ef4444', 14);
+                }
+            }
+        }
+
+        if (item.collected || item.z < 0.5) {
+            collectibles.splice(i, 1);
+        }
+    }
+
+    // تحديث الجزيئات
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const pt = particles[i];
+        pt.x += pt.vx * dt;
+        pt.y += pt.vy * dt;
+        pt.z += pt.vz * dt;
+        pt.vy -= 9.8 * dt;
+        pt.life -= dt;
+        if (pt.life <= 0) particles.splice(i, 1);
+    }
+
+    updateHUD();
+}
+
+function triggerGameOver() {
+    gameState = STATE.GAMEOVER;
+    screenShake = 14;
+    sfx.crash();
+
+    const finalScore = Math.floor(score);
+    finalScoreEl.textContent = finalScore;
+    finalCoinsEl.textContent = coins;
+
+    if (finalScore > highScore) {
+        highScore = finalScore;
+        localStorage.setItem('tunnel_escape_highscore', highScore.toString());
+        highScoreDisplay.textContent = highScore;
+        newRecordMsg.classList.remove('hidden');
+    } else {
+        newRecordMsg.classList.add('hidden');
+    }
+
+    setTimeout(() => {
+        gameoverScreen.classList.remove('hidden');
+    }, 550);
+}
+
+function render() {
+    ctx.save();
+
+    // اهتزاز الشاشة عند الاصطدام
+    if (screenShake > 0) {
+        const sx = (Math.random() - 0.5) * screenShake;
+        const sy = (Math.random() - 0.5) * screenShake;
+        ctx.translate(sx, sy);
+    }
+
+    // 1. رسم النفق والطريق
+    drawTunnelAndRoad();
+
+    // 2. ترتيب جميع الكائنات حسب العمق (Painter's Algorithm من الأبعد إلى الأقرب)
+    const renderList = [];
+
+    obstacles.forEach(obs => {
+        renderList.push({ z: obs.z, draw: () => drawVehicle(obs) });
+    });
+
+    collectibles.forEach(item => {
+        renderList.push({ z: item.z, draw: () => drawCollectible(item) });
+    });
+
+    renderList.push({ z: PLAYER_Z, draw: () => drawPlayer() });
+
+    if (chaseTimer > 0 || gameState === STATE.GAMEOVER) {
+        renderList.push({ z: PLAYER_Z - 1.5, draw: () => drawChaser() });
+    }
+
+    renderList.sort((a, b) => b.z - a.z);
+    renderList.forEach(obj => obj.draw());
+
+    // 3. رسم الشرارات والجزيئات
+    drawParticles();
+
+    // 4. خطوط سرعة جانبية عند بلوغ سرعات عالية
+    if (gameState === STATE.PLAYING && speed > 42) {
+        const intensity = (speed - 42) / 20;
+        ctx.strokeStyle = `rgba(255, 255, 255, ${0.14 * intensity})`;
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 8; i++) {
+            const side = i % 2 === 0 ? 0.04 : 0.96;
+            const yPos = ((performance.now() * 0.4 + i * 130) % height);
+            ctx.beginPath();
+            ctx.moveTo(width * side, yPos);
+            ctx.lineTo(width * side + (side < 0.5 ? 25 : -25), yPos + 55);
+            ctx.stroke();
+        }
+    }
+
+    ctx.restore();
+}
+
+function gameLoop(now) {
+    const dt = Math.min(0.05, (now - lastTime) / 1000);
+    lastTime = now;
+
+    update(dt);
+    render();
+
+    requestAnimationFrame(gameLoop);
+}
+
+// بدء التشغيل عند اكتمال تحميل الصفحة
+window.onload = function () {
+    resetGame();
+    lastTime = performance.now();
+    requestAnimationFrame(gameLoop);
+};
+</script>
+</body>
+</html>
